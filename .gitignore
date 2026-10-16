@@ -1,0 +1,32 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Secrets
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Research history and generated output
+research_history/
+research_output.txt
+research_report_*.txt
+research_report_*.md
+
+# Backups
+app_backup.py
+main_backup.py
+main_backuop.py
+main_backuop.py
+
+# Editor and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
