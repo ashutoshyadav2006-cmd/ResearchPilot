@@ -2,11 +2,11 @@ import json
 import os
 import re
 import time
+import requests
+import streamlit as st
 from typing import Callable, Optional
 from urllib.parse import urlparse
-
 from dotenv import load_dotenv
-from langchain_ollama import ChatOllama
 
 from tools import search_tool, read_tool, save_tool
 
@@ -19,26 +19,55 @@ load_dotenv()
 
 MODEL_NAME = "gemma3:4b"
 
-# Use separate generation limits for Quick and Deep Research.
-# A lower token budget makes Quick Research faster and more concise.
-quick_llm = ChatOllama(
-    model=MODEL_NAME,
-    temperature=0.2,
-    num_predict=400,
-)
 
-deep_llm = ChatOllama(
-    model=MODEL_NAME,
-    temperature=0.2,
-    num_predict=1000,
-)
+class GatewayResponse:
+    """Minimal response object compatible with existing report code."""
 
-# Citation reviewer: limit its response to a short audit.
-citation_llm = ChatOllama(
-    model=MODEL_NAME,
+    def __init__(self, content):
+        self.content = content
+
+
+class GatewayLLM:
+    """Send LangChain-style prompts to the authenticated local gateway."""
+
+    def __init__(self, temperature=0.2, num_predict=400, output_json=False):
+        self.temperature = temperature
+        self.num_predict = num_predict
+        self.output_json = output_json
+
+    def invoke(self, prompt):
+        gateway_url = st.secrets["RESEARCHPILOT_GATEWAY_URL"].rstrip("/")
+        gateway_token = st.secrets["RESEARCHPILOT_GATEWAY_TOKEN"]
+
+        response = requests.post(
+            f"{gateway_url}/api/chat",
+            headers={"Authorization": f"Bearer {gateway_token}"},
+            json={
+                "model": MODEL_NAME,
+                "messages": [
+                    {"role": "user", "content": str(prompt)}
+                ],
+                "stream": False,
+                "options": {
+                    "temperature": self.temperature,
+                    "num_predict": self.num_predict,
+                },
+                **({"format": "json"} if self.output_json else {}),
+            },
+            timeout=300,
+        )
+        response.raise_for_status()
+        data = response.json()
+
+        return GatewayResponse(data["message"]["content"])
+
+
+quick_llm = GatewayLLM(temperature=0.2, num_predict=400)
+deep_llm = GatewayLLM(temperature=0.2, num_predict=1000)
+citation_llm = GatewayLLM(
     temperature=0,
     num_predict=200,
-    format="json",
+    output_json=True,
 )
 
 PREFERRED_DOMAINS = [
